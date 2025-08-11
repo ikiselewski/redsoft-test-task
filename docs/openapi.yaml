@@ -1,0 +1,195 @@
+openapi: 3.0.3
+info:
+  title: Person API
+  version: 1.0.0
+  description: API for managing users and their friendships
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+paths:
+  /users:
+    get:
+      summary: List all users
+      operationId: listUsers
+      responses:
+        '200':
+          description: List of persons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Person'
+    post:
+      summary: Create a user
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: Person created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+        '400':
+          description: Invalid request
+  /persons/{id}:
+    put:
+      summary: Update a person
+      operationId: updatePerson
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePersonRequest'
+      responses:
+        '200':
+          description: Person updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+        '404':
+          description: Person not found
+  /persons/surname/{surname}:
+    get:
+      summary: Search persons by surname
+      operationId: searchPersonsBySurname
+      parameters:
+        - name: surname
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of persons with matching surname
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Person'
+  /persons/{id}/friends:
+    get:
+      summary: List friends of a person
+      operationId: listFriends
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of friends
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Person'
+    post:
+      summary: Add a friend
+      operationId: addFriend
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: friend_id
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '201':
+          description: Friend added
+        '400':
+          description: Invalid request
+        '404':
+          description: Person or friend not found
+components:
+  schemas:
+    Person:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        full_name:
+          type: string
+        gender:
+          type: string
+        nationality:
+          type: string
+        age:
+          type: integer
+        emails:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - full_name
+    CreateUserRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+        surname:
+          type: string
+        patronymic:
+          type: string 
+      required:
+        - first_name
+        - surname
+    CreateFullUserRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+        surname:
+          type: string
+        patronymic:
+          type: string
+        age: 
+          type: number
+          format: integer
+        nationality:
+          type: string
+        emails:
+          type: array
+          items:
+            type: string
+        gender:
+          type: string
+          enum:
+            - male
+            - female
+    UpdatePersonRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+        emails:
+          type: array
+          items:
+            type: string
