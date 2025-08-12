@@ -9,6 +9,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
+)
+
+// Defines values for UpdateUserRequestGender.
+const (
+	Female UpdateUserRequestGender = "female"
+	Male   UpdateUserRequestGender = "male"
 )
 
 // CreateUserRequest defines model for CreateUserRequest.
@@ -19,20 +26,42 @@ type CreateUserRequest struct {
 	Surname    string    `json:"surname"`
 }
 
-// Person defines model for Person.
-type Person struct {
-	Age         *int      `json:"age,omitempty"`
-	Emails      *[]string `json:"emails,omitempty"`
-	FullName    string    `json:"full_name"`
-	Gender      *string   `json:"gender,omitempty"`
-	Id          int64     `json:"id"`
-	Nationality *string   `json:"nationality,omitempty"`
+// ListUsersResponse defines model for ListUsersResponse.
+type ListUsersResponse struct {
+	Total int    `json:"total"`
+	Users []User `json:"users"`
 }
 
-// UpdatePersonRequest defines model for UpdatePersonRequest.
-type UpdatePersonRequest struct {
-	Emails   *[]string `json:"emails,omitempty"`
-	FullName *string   `json:"full_name,omitempty"`
+// UpdateUserRequest defines model for UpdateUserRequest.
+type UpdateUserRequest struct {
+	Age         *int                     `json:"age,omitempty"`
+	Emails      *[]string                `json:"emails,omitempty"`
+	Gender      *UpdateUserRequestGender `json:"gender,omitempty"`
+	Name        *string                  `json:"name,omitempty"`
+	Nationality *string                  `json:"nationality,omitempty"`
+	Patronymic  *string                  `json:"patronymic,omitempty"`
+	Surname     *string                  `json:"surname,omitempty"`
+}
+
+// UpdateUserRequestGender defines model for UpdateUserRequest.Gender.
+type UpdateUserRequestGender string
+
+// User defines model for User.
+type User struct {
+	Age         int                `json:"age"`
+	Emails      *[]string          `json:"emails,omitempty"`
+	Gender      string             `json:"gender"`
+	Id          openapi_types.UUID `json:"id"`
+	Name        string             `json:"name"`
+	Nationality string             `json:"nationality"`
+	Patronymic  string             `json:"patronymic"`
+	Surname     string             `json:"surname"`
+}
+
+// ListUsersParams defines parameters for ListUsers.
+type ListUsersParams struct {
+	Limit  int `form:"limit" json:"limit"`
+	Offset int `form:"offset" json:"offset"`
 }
 
 // AddFriendParams defines parameters for AddFriend.
@@ -40,32 +69,32 @@ type AddFriendParams struct {
 	FriendId int64 `form:"friend_id" json:"friend_id"`
 }
 
-// UpdatePersonJSONRequestBody defines body for UpdatePerson for application/json ContentType.
-type UpdatePersonJSONRequestBody = UpdatePersonRequest
-
 // CreateUserJSONRequestBody defines body for CreateUser for application/json ContentType.
 type CreateUserJSONRequestBody = CreateUserRequest
 
+// UpdateUserJSONRequestBody defines body for UpdateUser for application/json ContentType.
+type UpdateUserJSONRequestBody = UpdateUserRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Search persons by surname
-	// (GET /persons/surname/{surname})
-	SearchPersonsBySurname(c *gin.Context, surname string)
-	// Update a person
-	// (PUT /persons/{id})
-	UpdatePerson(c *gin.Context, id int64)
-	// List friends of a person
-	// (GET /persons/{id}/friends)
-	ListFriends(c *gin.Context, id int64)
-	// Add a friend
-	// (POST /persons/{id}/friends)
-	AddFriend(c *gin.Context, id int64, params AddFriendParams)
 	// List all users
 	// (GET /users)
-	ListUsers(c *gin.Context)
+	ListUsers(c *gin.Context, params ListUsersParams)
 	// Create a user
 	// (POST /users)
 	CreateUser(c *gin.Context)
+	// Search persons by surname
+	// (GET /users/surname/{surname})
+	SearchUsersBySurname(c *gin.Context, surname string)
+	// Update a person
+	// (PUT /users/{id})
+	UpdateUser(c *gin.Context, id int64)
+	// List friends of a user
+	// (GET /users/{id}/friends)
+	ListFriends(c *gin.Context, id int64)
+	// Add a friend
+	// (POST /users/{id}/friends)
+	AddFriend(c *gin.Context, id int64, params AddFriendParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -77,8 +106,69 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(c *gin.Context)
 
-// SearchPersonsBySurname operation middleware
-func (siw *ServerInterfaceWrapper) SearchPersonsBySurname(c *gin.Context) {
+// ListUsers operation middleware
+func (siw *ServerInterfaceWrapper) ListUsers(c *gin.Context) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListUsersParams
+
+	// ------------- Required query parameter "limit" -------------
+
+	if paramValue := c.Query("limit"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument limit is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "limit", c.Request.URL.Query(), &params.Limit)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Required query parameter "offset" -------------
+
+	if paramValue := c.Query("offset"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument offset is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "offset", c.Request.URL.Query(), &params.Offset)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter offset: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListUsers(c, params)
+}
+
+// CreateUser operation middleware
+func (siw *ServerInterfaceWrapper) CreateUser(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.CreateUser(c)
+}
+
+// SearchUsersBySurname operation middleware
+func (siw *ServerInterfaceWrapper) SearchUsersBySurname(c *gin.Context) {
 
 	var err error
 
@@ -98,11 +188,11 @@ func (siw *ServerInterfaceWrapper) SearchPersonsBySurname(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.SearchPersonsBySurname(c, surname)
+	siw.Handler.SearchUsersBySurname(c, surname)
 }
 
-// UpdatePerson operation middleware
-func (siw *ServerInterfaceWrapper) UpdatePerson(c *gin.Context) {
+// UpdateUser operation middleware
+func (siw *ServerInterfaceWrapper) UpdateUser(c *gin.Context) {
 
 	var err error
 
@@ -122,7 +212,7 @@ func (siw *ServerInterfaceWrapper) UpdatePerson(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.UpdatePerson(c, id)
+	siw.Handler.UpdateUser(c, id)
 }
 
 // ListFriends operation middleware
@@ -191,32 +281,6 @@ func (siw *ServerInterfaceWrapper) AddFriend(c *gin.Context) {
 	siw.Handler.AddFriend(c, id, params)
 }
 
-// ListUsers operation middleware
-func (siw *ServerInterfaceWrapper) ListUsers(c *gin.Context) {
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.ListUsers(c)
-}
-
-// CreateUser operation middleware
-func (siw *ServerInterfaceWrapper) CreateUser(c *gin.Context) {
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.CreateUser(c)
-}
-
 // GinServerOptions provides options for the Gin server.
 type GinServerOptions struct {
 	BaseURL      string
@@ -244,10 +308,10 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 		ErrorHandler:       errorHandler,
 	}
 
-	router.GET(options.BaseURL+"/persons/surname/:surname", wrapper.SearchPersonsBySurname)
-	router.PUT(options.BaseURL+"/persons/:id", wrapper.UpdatePerson)
-	router.GET(options.BaseURL+"/persons/:id/friends", wrapper.ListFriends)
-	router.POST(options.BaseURL+"/persons/:id/friends", wrapper.AddFriend)
 	router.GET(options.BaseURL+"/users", wrapper.ListUsers)
 	router.POST(options.BaseURL+"/users", wrapper.CreateUser)
+	router.GET(options.BaseURL+"/users/surname/:surname", wrapper.SearchUsersBySurname)
+	router.PUT(options.BaseURL+"/users/:id", wrapper.UpdateUser)
+	router.GET(options.BaseURL+"/users/:id/friends", wrapper.ListFriends)
+	router.POST(options.BaseURL+"/users/:id/friends", wrapper.AddFriend)
 }

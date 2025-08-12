@@ -1,10 +1,13 @@
 package srv
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"redsoft-test-task/internal/database"
+	"redsoft-test-task/internal/misc"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -25,7 +28,6 @@ type Dependencies struct {
 }
 
 type server struct {
-	db   database.ReadModel
 	r    *gin.Engine
 	cfg  SrvConfig
 	deps Dependencies
@@ -33,11 +35,23 @@ type server struct {
 
 func New(cfg *SrvConfig, deps *Dependencies) (ServerInterface, error) {
 	r := gin.Default()
-	return &server{db: deps.Database, r: r}, nil
+	return &server{r: r}, nil
 }
 
-func (srv *server) ListUsers(c *gin.Context) {
-	fmt.Printf("got request %s %s %s", c.Request.URL, c.Request.Method, c.HandlerName())
+func (srv *server) ListUsers(c *gin.Context, params ListUsersParams) {
+	if params.Limit < 0 || params.Offset < 0 {
+		c.JSON(http.StatusBadRequest, "invalid pagination")
+		return
+	}
+
+	users, total, err := srv.deps.Database.GetAllUsers(c.Request.Context(), params.Limit, params.Offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, fmt.Sprintf("can't parse request body due to %s", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, ListUsersResponse{Users: convertDBUsersToOAPI(users), Total: total})
+
 }
 
 func (srv *server) CreateUser(c *gin.Context) {
@@ -52,8 +66,6 @@ func (srv *server) CreateUser(c *gin.Context) {
 	}
 
 	id := uuid.New()
-
-	emails := convertOAPIEmailsToReadmodel(body.Emails, id)
 
 	var wg sync.WaitGroup
 	wg.Add(3)
@@ -70,7 +82,7 @@ func (srv *server) CreateUser(c *gin.Context) {
 			nationality = "unknown"
 			return
 		}
-		nationality = prediction.Country[0]
+		nationality = prediction.Country[0].CountryId
 
 		wg.Done()
 	}()
@@ -97,47 +109,58 @@ func (srv *server) CreateUser(c *gin.Context) {
 
 	wg.Wait()
 
-	srv.db.CreateUser(c.Request.Context(), &database.User{
-		ID:         id,
-		FirstName:  body.FirstName,
-		Surname:    body.Surname,
-		Patronymic: body.Patronymic,
-		Age:        age,
-		Gender:     gender,
-		Email:      emails,
+	srv.deps.Database.CreateUser(c.Request.Context(), &database.User{
+		ID:          id,
+		FirstName:   body.FirstName,
+		Surname:     body.Surname,
+		Patronymic:  body.Patronymic,
+		Age:         age,
+		Gender:      gender,
+		Nationality: nationality,
+		Emails:      misc.StrSlicePtrToStrSlice(body.Emails),
 	})
 
 }
 
-func (srv *server) UpdatePerson(c *gin.Context, id int64) {
-
-	fmt.Printf("got request %s %s %s", c.Request.URL, c.Request.Method, c.HandlerName())
+func (srv *server) UpdateUser(c *gin.Context, id int64) {
+	c.String(http.StatusNotImplemented, "not yet")
 }
 
 func (srv *server) ListFriends(c *gin.Context, id int64) {
-
-	fmt.Printf("got request %s %s %s", c.Request.URL, c.Request.Method, c.HandlerName())
+	c.String(http.StatusNotImplemented, "not yet")
 }
 
 func (srv *server) AddFriend(c *gin.Context, id int64, params AddFriendParams) {
-
-	fmt.Printf("got request %s %s %s", c.Request.URL, c.Request.Method, c.HandlerName())
+	c.String(http.StatusNotImplemented, "not yet")
 }
 
-func (srv *server) SearchPersonsBySurname(c *gin.Context, surname string) {
-
-	fmt.Printf("got request %s %s %s", c.Request.URL, c.Request.Method, c.HandlerName())
-}
-
-func convertOAPIEmailsToReadmodel(emails *[]string, userID uuid.UUID) []*database.Email {
-	if emails == nil {
-		return nil
+func (srv *server) SearchUsersBySurname(c *gin.Context, surname string) {
+	usr, err := srv.deps.Database.SearchUsersBySurname(c.Request.Context(), surname)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, "Not found")
+			return
+		}
+		c.JSON(http.StatusInternalServerError, "Something went wrong")
+		return
 	}
-	res := make([]*database.Email, len(*emails))
-	for i, email := range *emails {
-		res[i] = &database.Email{
-			UserID:  userID,
-			Address: email,
+
+	c.JSON(http.StatusOK, usr)
+}
+
+func convertDBUsersToOAPI(users []*database.User) []User {
+	res := make([]User, len(users))
+	for i, user := range users {
+
+		res[i] = User{
+			Age:         user.Age,
+			Emails:      &[]string{},
+			Gender:      user.Gender,
+			Id:          user.ID,
+			Name:        user.FirstName,
+			Nationality: user.Nationality,
+			Patronymic:  misc.StrPtrToStr(user.Patronymic),
+			Surname:     user.Surname,
 		}
 	}
 	return res

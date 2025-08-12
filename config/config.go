@@ -10,6 +10,7 @@ import (
 type Config struct {
 	database.DBConfig
 	srv.SrvConfig
+	ExternalAPIKey string `env:"EXTERNAL_API_KEY"`
 }
 
 func Get() (*Config, error) {

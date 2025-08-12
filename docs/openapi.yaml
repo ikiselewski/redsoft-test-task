@@ -11,15 +11,24 @@ paths:
     get:
       summary: List all users
       operationId: listUsers
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+          required: true
+        - in: query
+          name: offset
+          schema:
+            type: integer
+          required: true
       responses:
         '200':
           description: List of persons
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Person'
+                $ref: '#/components/schemas/ListUsersResponse'
     post:
       summary: Create a user
       operationId: createUser
@@ -31,43 +40,43 @@ paths:
               $ref: '#/components/schemas/CreateUserRequest'
       responses:
         '201':
-          description: Person created
+          description: User created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Person'
+                $ref: '#/components/schemas/User'
         '400':
           description: Invalid request
-  /persons/{id}:
+  /users/{id}:
     put:
       summary: Update a person
-      operationId: updatePerson
+      operationId: updateUser
       parameters:
         - name: id
           in: path
-          required: true
           schema:
             type: integer
             format: int64
+          required: true
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdatePersonRequest'
+              $ref: '#/components/schemas/UpdateUserRequest'
       responses:
         '200':
           description: Person updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Person'
+                $ref: '#/components/schemas/User'
         '404':
           description: Person not found
-  /persons/surname/{surname}:
+  /users/surname/{surname}:
     get:
       summary: Search persons by surname
-      operationId: searchPersonsBySurname
+      operationId: searchUsersBySurname
       parameters:
         - name: surname
           in: path
@@ -82,10 +91,10 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Person'
-  /persons/{id}/friends:
+                  $ref: '#/components/schemas/User'
+  /users/{id}/friends:
     get:
-      summary: List friends of a person
+      summary: List friends of a user
       operationId: listFriends
       parameters:
         - name: id
@@ -102,7 +111,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Person'
+                  $ref: '#/components/schemas/User'
     post:
       summary: Add a friend
       operationId: addFriend
@@ -128,13 +137,17 @@ paths:
           description: Person or friend not found
 components:
   schemas:
-    Person:
+    User:
       type: object
       properties:
         id:
-          type: integer
-          format: int64
-        full_name:
+          type: string
+          format: uuid
+        name:
+          type: string
+        surname:
+          type: string
+        patronymic:
           type: string
         gender:
           type: string
@@ -148,7 +161,12 @@ components:
             type: string
       required:
         - id
-        - full_name
+        - name
+        - surname
+        - patronymic
+        - gender
+        - nationality
+        - age
     CreateUserRequest:
       type: object
       properties:
@@ -157,7 +175,11 @@ components:
         surname:
           type: string
         patronymic:
-          type: string 
+          type: string
+        emails:
+          type: array
+          items:
+            type: string
       required:
         - first_name
         - surname
@@ -184,12 +206,37 @@ components:
           enum:
             - male
             - female
-    UpdatePersonRequest:
+    UpdateUserRequest:
       type: object
       properties:
-        full_name:
+        name:
           type: string
+        surname:
+          type: string
+        patronymic:
+          type: string
+        age:
+          type: integer
+        nationality:
+          type: string
+        gender:
+          type: string
+          enum: 
+            - male
+            - female
         emails:
           type: array
           items:
             type: string
+    ListUsersResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        total:
+          type: integer
+      required:
+       - users
+       - total

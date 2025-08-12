@@ -16,6 +16,11 @@ type DBConfig struct {
 
 type ReadModel interface {
 	CreateUser(ctx context.Context, user *User) error
+	SearchUsersBySurname(ctx context.Context, surname string) ([]*User, error)
+	GetUserByID(ctx context.Context, id uuid.UUID) (*User, error)
+	GetAllUsers(ctx context.Context, limit, offset int) ([]*User, int, error)
+	CreateFriendship(ctx context.Context, firstID, secondID uuid.UUID) error
+	UpdateUser(ctx context.Context, data *User, id uuid.UUID) error
 }
 
 type readModel struct {
@@ -35,13 +40,17 @@ func New(dsn string) (ReadModel, error) {
 	return &readModel{db: db}, err
 }
 
-func (r *readModel) GetUserBySurname(ctx context.Context, surname string) (*User, error) {
-	usr := &User{}
+func (r *readModel) SearchUsersBySurname(ctx context.Context, surname string) ([]*User, error) {
+	usr := []*User{}
 	err := r.db.NewSelect().Model(usr).Where("surname = ?", surname).Scan(ctx, usr)
 	return usr, err
 }
 
-func (r *readModel) GetUserByID(ctx context.Context, id int) (*User, error) {}
+func (r *readModel) GetUserByID(ctx context.Context, id uuid.UUID) (*User, error) {
+	usr := &User{}
+	err := r.db.NewSelect().Model(usr).Where("id = ?", id).Scan(ctx, usr)
+	return usr, err
+}
 
 func (r *readModel) GetAllUsers(ctx context.Context, limit, offset int) ([]*User, int, error) {
 	var users []*User
@@ -60,6 +69,6 @@ func (r *readModel) CreateFriendship(ctx context.Context, firstID, secondID uuid
 	return nil
 }
 
-func (r *readModel) PatchUser(ctx context.Context, data *User, id int) error {
+func (r *readModel) UpdateUser(ctx context.Context, data *User, id uuid.UUID) error {
 	return nil
 }

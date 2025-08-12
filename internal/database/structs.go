@@ -6,31 +6,22 @@ import (
 )
 
 type User struct {
-	bun.BaseModel
-
-	ID          uuid.UUID `bun:",pk"`
-	FirstName   string
-	Surname     string
-	Patronymic  *string
-	Gender      string
-	Nationality string
-	Age         int
-	Email       []*Email `bun:"rel:has-many,join:id=user_id"`
-	Friends     []*User  `bun:"m2m:friends,"`
-}
-
-type Email struct {
-	bun.BaseModel
-
-	UserID  uuid.UUID
-	Address string
+	bun.BaseModel `bun:"table:public.users,alias:u"`
+	ID            uuid.UUID `bun:"id,pk,type:uuid,default:uuid_generate_v4()"`
+	FirstName     string    `bun:"first_name,notnull,type:text"`
+	Surname       string    `bun:"surname,notnull,type:text"`
+	Patronymic    *string   `bun:"patronymic,type:text"`
+	Age           int       `bun:"age,notnull,type:integer"`
+	Nationality   string    `bun:"nationality,notnull,type:text"`
+	Gender        string    `bun:"gender,notnull,type:text"`
+	Emails        []string  `bun:"emails,notnull,type:jsonb"`
+	//Friends       []*User   `bun:"m2m:friends,join:User=Friend"`
 }
 
 type Friend struct {
-	bun.BaseModel
-
-	UserID   uuid.UUID `bun:"user_id,pk"`
-	User     *User     `bun:"rel:belongs-to,join:user_id=id"`
-	FriendID uuid.UUID `bun:"friend_id,pk"`
-	Friend   *User     `bun:"rel:belongs-to,join:friend_id=id"`
+	bun.BaseModel `bun:"table:public.friends,alias:f"`
+	PersonID      uuid.UUID `bun:"person_id,pk,type:uuid"`
+	Person        *User     `bun:"rel:belongs-to,join:person_id=id"`
+	FriendID      uuid.UUID `bun:"friend_id,pk,type:uuid"`
+	Friend        *User     `bun:"rel:belongs-to,join:friend_id=id"`
 }
